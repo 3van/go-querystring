@@ -206,12 +206,30 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 				}
 				values.Add(name, s.String())
 			} else {
-				for i := 0; i < sv.Len(); i++ {
-					k := name
-					if opts.Contains("numbered") {
-						k = fmt.Sprintf("%s%d", name, i)
+				if opts.Contains("dotnumbered") {
+					for i := 0; i < sv.Len(); i++ {
+						if sv.Index(i).Kind() == reflect.Struct {
+							ssv := make(url.Values)
+							reflectValue(ssv, sv.Index(i), "")
+							for key, val := range ssv {
+								k := fmt.Sprintf("%s.%d.%s", name, i, key)
+								for _, strval := range val {
+									values.Add(k, valueString(strval, opts))
+								}
+							}
+						} else {
+							k := fmt.Sprintf("%s.%d", name, i)
+							values.Add(k, valueString(sv.Index(i), opts))
+						}
 					}
-					values.Add(k, valueString(sv.Index(i), opts))
+				} else {
+					for i := 0; i < sv.Len(); i++ {
+						k := name
+						if opts.Contains("numbered") {
+							k = fmt.Sprintf("%s%d", name, i)
+						}
+						values.Add(k, valueString(sv.Index(i), opts))
+					}
 				}
 			}
 			continue
