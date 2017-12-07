@@ -214,7 +214,7 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 							for key, val := range ssv {
 								k := fmt.Sprintf("%s.%d.%s", name, i, key)
 								for _, strval := range val {
-									values.Add(k, valueString(strval, opts))
+									values.Add(k, strval)
 								}
 							}
 						} else {

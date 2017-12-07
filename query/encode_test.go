@@ -22,8 +22,6 @@ type SubNested struct {
 	Value string `url:"value"`
 }
 
-type 
-
 func TestValues_types(t *testing.T) {
 	str := "string"
 	strPtr := &str
@@ -170,7 +168,7 @@ func TestValues_types(t *testing.T) {
 			struct {
 				Nest []Nested `url:"nest,dotnumbered"`
 			}{
-				Nest{
+				[]Nested{
 					Nested{
 						A: SubNested{
 							Value: "that",
