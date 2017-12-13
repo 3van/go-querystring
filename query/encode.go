@@ -128,14 +128,14 @@ func Values(v interface{}) (url.Values, error) {
 		return nil, fmt.Errorf("query: Values() expects struct input. Got %v", val.Kind())
 	}
 
-	err := reflectValue(values, val, "")
+	err := reflectValue(values, val, "", nil)
 	return values, err
 }
 
 // reflectValue populates the values parameter from the struct fields in val.
 // Embedded structs are followed recursively (using the rules defined in the
 // Values function documentation) breadth-first.
-func reflectValue(values url.Values, val reflect.Value, scope string) error {
+func reflectValue(values url.Values, val reflect.Value, scope string, parentOpts tagOptions) error {
 	var embedded []reflect.Value
 
 	typ := val.Type()
@@ -151,6 +151,9 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 			continue
 		}
 		name, opts := parseTag(tag)
+		if parentOpts != nil {
+			opts = parentOpts
+		}
 		if name == "" {
 			if sf.Anonymous && sv.Kind() == reflect.Struct {
 				// save embedded struct for later processing
@@ -162,7 +165,7 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 		}
 
 		if scope != "" {
-			name = scope + "[" + name + "]"
+			name = scope + "." + name
 		}
 
 		if opts.Contains("omitempty") && isEmptyValue(sv) {
@@ -210,7 +213,7 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 					for i := 0; i < sv.Len(); i++ {
 						if sv.Index(i).Kind() == reflect.Struct {
 							ssv := make(url.Values)
-							reflectValue(ssv, sv.Index(i), "")
+							reflectValue(ssv, sv.Index(i), "", opts)
 							for key, val := range ssv {
 								k := fmt.Sprintf("%s.%d.%s", name, i, key)
 								for _, strval := range val {
@@ -248,7 +251,7 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 		}
 
 		if sv.Kind() == reflect.Struct {
-			reflectValue(values, sv, name)
+			reflectValue(values, sv, name, opts)
 			continue
 		}
 
@@ -256,7 +259,7 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 	}
 
 	for _, f := range embedded {
-		if err := reflectValue(values, f, scope); err != nil {
+		if err := reflectValue(values, f, scope, nil); err != nil {
 			return err
 		}
 	}
