@@ -28,11 +28,12 @@ func TestValues_types(t *testing.T) {
 	timeVal := time.Date(2000, 1, 1, 12, 34, 56, 0, time.UTC)
 
 	tests := []struct {
+		name string
 		in   interface{}
 		want url.Values
 	}{
 		{
-			// basic primitives
+			"basic primitives",
 			struct {
 				A string
 				B int
@@ -49,7 +50,7 @@ func TestValues_types(t *testing.T) {
 			},
 		},
 		{
-			// pointers
+			"pointers",
 			struct {
 				A *string
 				B *int
@@ -68,7 +69,7 @@ func TestValues_types(t *testing.T) {
 			},
 		},
 		{
-			// slices and arrays
+			"slices and arrays",
 			struct {
 				A []string
 				B []string `url:",comma"`
@@ -114,7 +115,7 @@ func TestValues_types(t *testing.T) {
 			},
 		},
 		{
-			// other types
+			"other types",
 			struct {
 				A time.Time
 				B time.Time `url:",unix"`
@@ -134,8 +135,9 @@ func TestValues_types(t *testing.T) {
 			},
 		},
 		{
+			"subnested",
 			struct {
-				Nest Nested `url:"nest"`
+				Nest Nested `url:"nest,brackets"`
 			}{
 				Nested{
 					A: SubNested{
@@ -149,6 +151,7 @@ func TestValues_types(t *testing.T) {
 			},
 		},
 		{
+			"subnested-ptr",
 			struct {
 				Nest Nested `url:"nest"`
 			}{
@@ -165,6 +168,7 @@ func TestValues_types(t *testing.T) {
 			},
 		},
 		{
+			"subnested-dotnumbered",
 			struct {
 				Nest []Nested `url:"nest,dotnumbered"`
 			}{
@@ -187,19 +191,63 @@ func TestValues_types(t *testing.T) {
 			},
 		},
 		{
+			"escaped-strings",
+			struct {
+				A string `url:",escaped"`
+				B string `url:",escaped"`
+				C string
+				D string
+			}{
+				A: "foo:bar:baz",
+				B: "foo/bar/baz",
+				C: "foo:bar:baz",
+				D: "foo/bar/baz",
+			},
+			url.Values{
+				"A": {"foo%3Abar%3Abaz"},
+				"B": {"foo%2Fbar%2Fbaz"},
+				"C": {"foo:bar:baz"},
+				"D": {"foo/bar/baz"},
+			},
+		},
+		{
+			"nested-escaped-dotnumbered",
+			struct {
+				Nest []Nested `url:"nest,dotnumbered,escaped"`
+			}{
+				[]Nested{
+					Nested{
+						A: SubNested{
+							Value: "that:is:an:escaped:value",
+						},
+					},
+					Nested{
+						A: SubNested{
+							Value: "this/is/also/escaped",
+						},
+					},
+				},
+			},
+			url.Values{
+				"nest.0.a.value": {"that%3Ais%3Aan%3Aescaped%3Avalue"},
+				"nest.1.a.value": {"this%2Fis%2Falso%2Fescaped"},
+			},
+		},
+		{
+			"nil",
 			nil,
 			url.Values{},
 		},
 	}
 
-	for i, tt := range tests {
+	for _, tt := range tests {
 		v, err := Values(tt.in)
 		if err != nil {
-			t.Errorf("%d. Values(%q) returned error: %v", i, tt.in, err)
+			t.Errorf("%s. Values(%q) returned error: %v", tt.name, tt.in, err)
 		}
 
 		if !reflect.DeepEqual(tt.want, v) {
-			t.Errorf("%d. Values(%q) returned %v, want %v", i, tt.in, v, tt.want)
+			t.Errorf("%s. Values(%q) returned %v, want %v", tt.name, tt.in, v, tt.want)
 		}
 	}
 }
@@ -217,7 +265,7 @@ func TestValues_omitEmpty(t *testing.T) {
 
 	v, err := Values(s)
 	if err != nil {
-		t.Errorf("Values(%q) returned error: %v", s, err)
+		t.Errorf("Values(%#v) returned error: %v", s, err)
 	}
 
 	want := url.Values{
@@ -226,7 +274,7 @@ func TestValues_omitEmpty(t *testing.T) {
 		"E":         {""}, // E is included because the pointer is not empty, even though the string being pointed to is
 	}
 	if !reflect.DeepEqual(want, v) {
-		t.Errorf("Values(%q) returned %v, want %v", s, v, want)
+		t.Errorf("Values(%#v) returned %v, want %v", s, v, want)
 	}
 }
 
@@ -324,12 +372,12 @@ func TestValues_MarshalerWithNilPointer(t *testing.T) {
 	}{}
 	v, err := Values(s)
 	if err != nil {
-		t.Errorf("Values(%q) returned error: %v", s, err)
+		t.Errorf("Values(%#v) returned error: %v", s, err)
 	}
 
 	want := url.Values{}
 	if !reflect.DeepEqual(want, v) {
-		t.Errorf("Values(%q) returned %v, want %v", s, v, want)
+		t.Errorf("Values(%#v) returned %v, want %v", s, v, want)
 	}
 }
 

@@ -164,12 +164,16 @@ func reflectValue(values url.Values, val reflect.Value, scope string, parentOpts
 			name = sf.Name
 		}
 
-		if scope != "" {
-			name = scope + "." + name
-		}
-
 		if opts.Contains("omitempty") && isEmptyValue(sv) {
 			continue
+		}
+
+		if scope != "" {
+			if opts.Contains("dotnumbered") {
+				name = scope + "." + name
+			} else {
+				name = scope + "[" + name + "]"
+			}
 		}
 
 		if sv.Type().Implements(encoderType) {
@@ -217,7 +221,9 @@ func reflectValue(values url.Values, val reflect.Value, scope string, parentOpts
 							for key, val := range ssv {
 								k := fmt.Sprintf("%s.%d.%s", name, i, key)
 								for _, strval := range val {
-									values.Add(k, strval)
+									if strval != "" {
+										values.Add(k, strval)
+									}
 								}
 							}
 						} else {
@@ -251,7 +257,11 @@ func reflectValue(values url.Values, val reflect.Value, scope string, parentOpts
 		}
 
 		if sv.Kind() == reflect.Struct {
-			reflectValue(values, sv, name, opts)
+			if opts.Contains("dotnumbered") {
+				reflectValue(values, sv, name, opts)
+			} else {
+				reflectValue(values, sv, name, nil)
+			}
 			continue
 		}
 
@@ -281,6 +291,10 @@ func valueString(v reflect.Value, opts tagOptions) string {
 			return "1"
 		}
 		return "0"
+	}
+
+	if v.Kind() == reflect.String && opts.Contains("escaped") {
+		return url.QueryEscape(v.String())
 	}
 
 	if v.Type() == timeType {
